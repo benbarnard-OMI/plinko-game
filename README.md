@@ -8,9 +8,9 @@
 
 ## About
 
-Plinko is a classic game where the player drops a ball in a multi-row pin pyramid, where the ball bounces randomly until it reaches the payout bins at the bottom.
+Plinko is a classic game where the player drops a token through a field of pegs, where it bounces randomly until it reaches one of the prize bins at the bottom.
 
-This project is a replication of [Stake.com's Plinko game](https://stake.com/casino/games/plinko), created using [Svelte](https://svelte.dev/), [Tailwind CSS](https://tailwindcss.com/), and [matter-js](https://github.com/liabru/matter-js). This website is a fun personal project to learn Svelte, and it is not affiliated with Stake.com in any way. I don't encourage gambling, so that's why I created a free-to-play version of the game.
+This project creates a physical arcade-style Plinko game using [Svelte](https://svelte.dev/), [Tailwind CSS](https://tailwindcss.com/), and [matter-js](https://github.com/liabru/matter-js) for the visual simulation, combined with real hardware sensors for token detection. Players drop a physical token and receive a real prize based on which bin it lands in - no scoring, betting, or gambling involved.
 
 ### This project is NON-PROFIT
 
@@ -20,18 +20,24 @@ Please fork this project on your own if you want to build on top of it.
 
 ## Features
 
-- 🤑 100% free to play, add money at any time (~~not another crypto scam~~)
-- 🤖 Manual and auto-bet modes
-- 📊 Real-time live stats
-- 📱 Responsive design
+- 🎯 Physical token drop with real prize rewards
+- 🎮 Arcade-style interactive experience  
+- 📺 Visual simulation synchronized with physical gameplay
+- 🔧 Hardware integration with IR sensors and microcontroller
+- 🎨 Attractive lighting and sound effects
+- 📱 Responsive design for various display sizes
 
-## Limitations
+## Game Design
 
-The biggest limitation is that this project calculates the outcome on the client-side, so we cannot pre-determine the outcome before ball drop, nor force the ball to drop to a specific pin.
+This is a **physical prize game**, not a gambling or scoring system:
 
-This is because this project uses [matter-js](https://github.com/liabru/matter-js) as the physics engine. This engine runs on client-side, so the outcome is unknown until the ball reaches the bottom. This is different from Stake.com's implementation, where they calculate the outcome in a back-end server, then drop the ball to the determined pin.
+- **Single Play**: Players drop one token per game
+- **Physical Prizes**: Each bin corresponds to a real prize (toys, candy, tickets, etc.)
+- **No Scoring**: No points, money, or betting involved
+- **Arcade Experience**: Focus on fun, spectacle, and immediate reward
+- **Family Friendly**: Suitable for all ages
 
-Due to the physics engine's unpredictability, the actual average return value may be higher than the expected value (sometimes positive return). This is problematic for real-money gambling, since casinos make money by having a [house advantage](https://en.wikipedia.org/wiki/Casino_game#House_advantage), where the expected return is always less than 1. This could be fixed by adjusting the bin payouts, but I stick to the original Stake.com's payout table for simplicity.
+The visual simulation shows the token's path for entertainment while the physical token determines the actual prize.
 
 ## Development
 
@@ -345,3 +351,30 @@ All messages are newline-terminated JSON objects. Example schema:
 This project is licensed under the MIT License. See `LICENSE` for details.
 
 ---
+
+## TV Show Plinko Adaptation
+
+### Game Board Layout
+The game uses a **uniform width** layout based on the classic TV show:
+- **Rectangular grid** of pegs (same width top to bottom)
+- Multiple drop slots across the entire top width
+- Uniform grid of pegs in rows and columns
+- Same number of prize bins at bottom as drop slots at top
+- Typically 9 drop slots and 9 prize bins
+
+### Prize System
+Instead of monetary payouts, each bin represents a physical prize:
+- **Prize Bins**: Each bin corresponds to a different prize tier or specific item
+- **Prize Display**: Visual indicators show what prize each bin contains
+- **Prize Dispensing**: Hardware integration can trigger prize dispensers or alert operators
+- **Configurable Prizes**: Easy to change what prizes are associated with each bin
+
+### Planned Implementation
+1. Remove all gambling/scoring mechanics from the existing code
+2. Replace payout tables with prize configuration system
+3. Implement uniform rectangular pin grid layout
+4. Add prize display and management interface
+5. Integrate with prize dispensing or notification hardware
+6. Focus on visual spectacle and entertainment value
+
+This creates a true arcade experience focused on fun and immediate physical rewards.
