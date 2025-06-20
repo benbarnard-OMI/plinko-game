@@ -13,7 +13,7 @@ export const plinkoEngine = writable<PlinkoEngine | null>(null);
  * Number of columns in the board (which determines number of prize bins).
  * In TV show Plinko, this creates a uniform-width rectangular grid.
  */
-export const columnCount = writable<ColumnCount>(7);
+export const columnCount = writable<ColumnCount>(9);
 
 /**
  * Configuration for prize bins - what prize each bin contains.

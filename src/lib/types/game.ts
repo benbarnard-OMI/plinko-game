@@ -1,7 +1,7 @@
 /**
  * Range of column counts the game supports for TV-style uniform boards.
  */
-export const columnCountOptions = [7, 9, 11] as const;
+export const columnCountOptions = [9, 11] as const;
 
 /**
  * Number of columns for the uniform width board.

@@ -76,7 +76,6 @@ class PlinkoEngine {
   private static tokenFrictions: TokenFrictionsByColumnCount = {
     friction: 0.5,
     frictionAirByColumnCount: {
-      7: 0.041,
       9: 0.0395,
       11: 0.038,
     },
@@ -271,7 +270,7 @@ class PlinkoEngine {
   }
 
   /**
-   * Creates a uniform rectangular grid of pins (TV show style).
+   * Creates a proper staggered Plinko pin layout (TV show style).
    * Previous pins and walls are removed before creating new ones.
    */
   private createUniformBoard() {
@@ -288,58 +287,100 @@ class PlinkoEngine {
     }
 
     const rowCount = 12; // Fixed number of rows for TV-style board
-    const pinDistanceX = this.pinDistanceX;
     const pinDistanceY = this.pinDistanceY;
+    
+    // Use consistent horizontal spacing between pins
+    const pinDistanceX = this.pinDistanceX;
 
-    // Create uniform rectangular grid of pins
+    // Create proper staggered pin layout (like classic TV Plinko)
     for (let row = 0; row < rowCount; row++) {
       const rowY = PADDING_TOP + pinDistanceY * row;
       
-      // Offset every other row to create the pin pattern
-      const xOffset = (row % 2) * (pinDistanceX / 2);
+      // Alternate between two patterns:
+      // Even rows: pins aligned with columns
+      // Odd rows: pins offset by half distance (staggered)
+      const isEvenRow = row % 2 === 0;
       
-      for (let col = 0; col < this.columnCount; col++) {
-        const colX = PADDING_X + pinDistanceX * col + xOffset;
-        
-        // Skip pins that would be outside the game area
-        if (colX < PADDING_X || colX > this.canvas.width - PADDING_X) {
-          continue;
+      if (isEvenRow) {
+        // Even rows: place pins at regular column positions
+        for (let col = 0; col < this.columnCount; col++) {
+          const colX = PADDING_X + pinDistanceX * col;
+          
+          // Skip pins too close to edges
+          if (colX < PADDING_X + this.pinRadius || colX > this.canvas.width - PADDING_X - this.pinRadius) {
+            continue;
+          }
+          
+          const pinBody = Matter.Bodies.circle(colX, rowY, this.pinRadius, {
+            isStatic: true,
+            render: {
+              fillStyle: '#ffffff',
+            },
+            collisionFilter: {
+              category: PIN_CATEGORY,
+              mask: TOKEN_CATEGORY,
+            },
+          });
+          this.pins.push(pinBody);
         }
-        
-        const pin = Matter.Bodies.circle(colX, rowY, this.pinRadius, {
-          isStatic: true,
-          render: {
-            fillStyle: '#ffffff',
-          },
-          collisionFilter: {
-            category: PIN_CATEGORY,
-            mask: TOKEN_CATEGORY, // Collide with tokens
-          },
-        });
-        this.pins.push(pin);
+      } else {
+        // Odd rows: offset by half distance to create staggered pattern
+        for (let col = 0; col < this.columnCount - 1; col++) {
+          const colX = PADDING_X + pinDistanceX * col + pinDistanceX / 2;
+          
+          // Skip pins too close to edges
+          if (colX < PADDING_X + this.pinRadius || colX > this.canvas.width - PADDING_X - this.pinRadius) {
+            continue;
+          }
+          
+          const pinBody = Matter.Bodies.circle(colX, rowY, this.pinRadius, {
+            isStatic: true,
+            render: {
+              fillStyle: '#ffffff',
+            },
+            collisionFilter: {
+              category: PIN_CATEGORY,
+              mask: TOKEN_CATEGORY,
+            },
+          });
+          this.pins.push(pinBody);
+        }
       }
     }
     Matter.Composite.add(this.engine.world, this.pins);
 
-    // Create side walls
+    // Create side walls that tokens will bounce off
+    const wallThickness = 20;
     const leftWall = Matter.Bodies.rectangle(
-      PADDING_X / 2,
+      PADDING_X - wallThickness / 2,
       this.canvas.height / 2,
-      10,
+      wallThickness,
       this.canvas.height,
       {
         isStatic: true,
         render: { visible: false },
+        restitution: 0.8, // Make walls bouncy
+        friction: 0.1,
+        collisionFilter: {
+          category: PIN_CATEGORY, // Same category as pins
+          mask: TOKEN_CATEGORY, // Collide with tokens
+        },
       },
     );
     const rightWall = Matter.Bodies.rectangle(
-      this.canvas.width - PADDING_X / 2,
+      this.canvas.width - PADDING_X + wallThickness / 2,
       this.canvas.height / 2,
-      10,
+      wallThickness,
       this.canvas.height,
       {
         isStatic: true,
         render: { visible: false },
+        restitution: 0.8, // Make walls bouncy
+        friction: 0.1,
+        collisionFilter: {
+          category: PIN_CATEGORY, // Same category as pins
+          mask: TOKEN_CATEGORY, // Collide with tokens
+        },
       },
     );
     this.walls.push(leftWall, rightWall);
