@@ -48,6 +48,10 @@ class PlinkoEngine {
    */
   private walls: Matter.Body[] = [];
   /**
+   * Drop slot markers to show where tokens will be dropped.
+   */
+  private dropSlotMarkers: Matter.Body[] = [];
+  /**
    * "Sensor" is an invisible body at the bottom of the canvas. It detects whether
    * a token arrives at the bottom and enters a prize bin.
    */
@@ -116,23 +120,28 @@ class PlinkoEngine {
 
     this.sensor = Matter.Bodies.rectangle(
       this.canvas.width / 2,
-      this.canvas.height,
-      this.canvas.width,
-      10,
+      this.canvas.height - 50, // Move sensor down more
+      this.canvas.width - 40, // Make it narrower to be within the walls
+      30, // Make it thicker for better detection
       {
         isSensor: true,
         isStatic: true,
         render: {
-          visible: false,
+          visible: true, // Make it visible for debugging
+          fillStyle: 'rgba(255, 0, 0, 0.5)', // More visible red
         },
       },
     );
     Matter.Composite.add(this.engine.world, [this.sensor]);
     Matter.Events.on(this.engine, 'collisionStart', ({ pairs }) => {
+      console.log('Collision detected, pairs:', pairs.length);
       pairs.forEach(({ bodyA, bodyB }) => {
+        console.log('Collision between:', bodyA.id, 'and', bodyB.id);
         if (bodyA === this.sensor) {
+          console.log('Sensor collision with bodyB:', bodyB.id);
           this.handleTokenEnterBin(bodyB);
         } else if (bodyB === this.sensor) {
+          console.log('Sensor collision with bodyA:', bodyA.id);
           this.handleTokenEnterBin(bodyA);
         }
       });
@@ -145,6 +154,29 @@ class PlinkoEngine {
   start() {
     Matter.Render.run(this.render); // Renders the scene to canvas
     Matter.Runner.run(this.runner, this.engine); // Starts the simulation in physics engine
+    
+    // Start checking for tokens that have fallen to the bottom
+    this.startTokenCleanup();
+  }
+
+  /**
+   * Start periodic check for tokens that have fallen to the bottom
+   */
+  private startTokenCleanup() {
+    setInterval(() => {
+      const tokensToRemove = this.engine.world.bodies.filter(body => {
+        // Check if it's a token (has the TOKEN_CATEGORY)
+        const isToken = body.collisionFilter.category === PlinkoEngine.TOKEN_CATEGORY;
+        // Check if it's below the sensor position
+        const isBelowSensor = body.position.y > this.canvas.height - 80;
+        return isToken && isBelowSensor;
+      });
+      
+      tokensToRemove.forEach(token => {
+        console.log('Token cleanup - removing token at y:', token.position.y);
+        this.handleTokenEnterBin(token);
+      });
+    }, 100); // Check every 100ms
   }
 
   /**
@@ -179,7 +211,7 @@ class PlinkoEngine {
         frictionAir: frictionAirByColumnCount[this.columnCount],
         collisionFilter: {
           category: PlinkoEngine.TOKEN_CATEGORY,
-          mask: PlinkoEngine.PIN_CATEGORY, // Collide with pins only, but not other tokens
+          mask: PlinkoEngine.PIN_CATEGORY | 0x0001, // Collide with pins and default objects
         },
         render: {
           fillStyle: '#ff0000',
@@ -242,8 +274,11 @@ class PlinkoEngine {
    * Called when a token hits the invisible sensor at the bottom.
    */
   private handleTokenEnterBin(token: Matter.Body) {
+    console.log('Token hit sensor!', token.position);
     const tokenX = token.position.x;
     const binIndex = this.calculateBinIndex(tokenX);
+    
+    console.log('Calculated bin index:', binIndex, 'for token at x:', tokenX);
     
     if (binIndex >= 0 && binIndex < this.columnCount) {
       const currentPrizeBins = get(prizeBins);
@@ -257,6 +292,7 @@ class PlinkoEngine {
         columnCount: this.columnCount,
       };
 
+      console.log('Adding prize record:', record);
       prizeRecords.update((records) => [...records, record]);
     }
 
@@ -289,6 +325,33 @@ class PlinkoEngine {
       Matter.Composite.remove(this.engine.world, this.walls);
       this.walls = [];
     }
+    if (this.dropSlotMarkers.length > 0) {
+      Matter.Composite.remove(this.engine.world, this.dropSlotMarkers);
+      this.dropSlotMarkers = [];
+    }
+
+    // Create drop slot markers at the top
+    const slotWidth = this.gameWidth / this.columnCount;
+    for (let slot = 0; slot < this.columnCount; slot++) {
+      const slotX = PADDING_X + slotWidth * slot + slotWidth / 2;
+      const marker = Matter.Bodies.rectangle(
+        slotX,
+        PADDING_TOP / 2, // Position at top of game area
+        slotWidth * 0.8, // Slightly smaller than slot width
+        8, // Thin rectangular marker
+        {
+          isStatic: true,
+          isSensor: true, // Don't collide with anything
+          render: {
+            fillStyle: '#00ff00', // Bright green for visibility
+            strokeStyle: '#ffffff',
+            lineWidth: 2,
+          },
+        }
+      );
+      this.dropSlotMarkers.push(marker);
+    }
+    Matter.Composite.add(this.engine.world, this.dropSlotMarkers);
 
     const rowCount = 12; // Fixed number of rows for TV-style board
     const pinDistanceY = this.pinDistanceY;
@@ -353,16 +416,17 @@ class PlinkoEngine {
     }
     Matter.Composite.add(this.engine.world, this.pins);
 
-    // Create side walls that tokens will bounce off
+    // Create side walls that tokens will bounce off (closer to play area)
     const wallThickness = 20;
+    const wallOffset = 10; // Distance from play area edge
     const leftWall = Matter.Bodies.rectangle(
-      PADDING_X - wallThickness / 2,
+      PADDING_X + wallOffset + wallThickness / 2,
       this.canvas.height / 2,
       wallThickness,
       this.canvas.height,
       {
         isStatic: true,
-        render: { visible: false },
+        render: { visible: true, fillStyle: '#555555' }, // Make walls visible
         restitution: 0.8, // Make walls bouncy
         friction: 0.1,
         collisionFilter: {
@@ -372,13 +436,13 @@ class PlinkoEngine {
       },
     );
     const rightWall = Matter.Bodies.rectangle(
-      this.canvas.width - PADDING_X + wallThickness / 2,
+      this.canvas.width - PADDING_X - wallOffset - wallThickness / 2,
       this.canvas.height / 2,
       wallThickness,
       this.canvas.height,
       {
         isStatic: true,
-        render: { visible: false },
+        render: { visible: true, fillStyle: '#555555' }, // Make walls visible
         restitution: 0.8, // Make walls bouncy
         friction: 0.1,
         collisionFilter: {

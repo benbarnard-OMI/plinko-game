@@ -2,9 +2,10 @@
   import logo from '$lib/assets/logo.svg';
   // import LiveStatsWindow from '$lib/components/LiveStatsWindow/LiveStatsWindow.svelte';
   import Plinko from '$lib/components/Plinko';
+  import LastWins from '$lib/components/Plinko/LastWins.svelte';
   // import SettingsWindow from '$lib/components/SettingsWindow';
   import PrizeSidebar from '$lib/components/Sidebar/PrizeSidebar.svelte';
-  import GitHubLogo from 'phosphor-svelte/lib/GithubLogo';
+  import { prizeRecords } from '$lib/stores/game';
 </script>
 
 <div class="relative flex min-h-dvh w-full flex-col">
@@ -18,12 +19,59 @@
   </nav>
 
   <div class="flex-1 px-5">
-    <div class="mx-auto mt-5 max-w-xl min-w-[300px] drop-shadow-xl md:mt-10 lg:max-w-7xl">
-      <div class="flex flex-col-reverse overflow-hidden rounded-lg lg:w-full lg:flex-row">
+    <!-- Game Controls - Outside the presentation area -->
+    <div class="mx-auto max-w-[1600px] mb-6">
+      <div class="max-w-md mx-auto">
         <PrizeSidebar />
-        <div class="flex-1">
-          <Plinko />
+      </div>
+    </div>
+
+    <!-- Wide-screen TV presentation layout with side branding rectangles -->
+    <div class="mx-auto max-w-[1600px] min-w-[300px]">
+      <div class="flex items-stretch justify-center min-h-[600px] gap-6">
+        
+        <!-- Left Branding Rectangle -->
+        <div class="hidden lg:block w-80 bg-gray-700 rounded-lg border-2 border-gray-600">
+          <div class="h-full flex items-center justify-center">
+            <div class="text-center text-gray-400">
+              <div class="text-xl font-bold mb-2">BRANDING</div>
+              <div class="text-sm">Left Content Area</div>
+              <div class="text-xs mt-2 opacity-60">Future sponsor content</div>
+            </div>
+          </div>
         </div>
+
+        <!-- Main Game Presentation Area (4:3 aspect ratio) -->
+        <div class="flex-shrink-0">
+          <div class="bg-gray-800 rounded-lg border-2 border-gray-600 overflow-hidden" style="aspect-ratio: 4/3; width: 800px;">
+            <!-- Pure Plinko board - no controls -->
+            <div class="h-full w-full">
+              <Plinko />
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Branding Rectangle -->
+        <div class="hidden lg:block w-80 bg-gray-700 rounded-lg border-2 border-gray-600">
+          <div class="h-full flex items-center justify-center">
+            <div class="text-center text-gray-400">
+              <div class="text-xl font-bold mb-2">BRANDING</div>
+              <div class="text-sm">Right Content Area</div>
+              <div class="text-xs mt-2 opacity-60">Future sponsor content</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      
+      <!-- Last Prize Won - Outside the presentation area -->
+      <div class="mt-6 flex justify-center">
+        <LastWins recordCount={1} />
+      </div>
+      
+      <!-- Debug: Show prize records count -->
+      <div class="mt-2 text-center text-white text-sm">
+        Debug: Prize records count: {$prizeRecords.length}
       </div>
     </div>
   </div>
@@ -31,34 +79,6 @@
   <!-- Temporarily commented out until refactored -->
   <!-- <SettingsWindow />
   <LiveStatsWindow /> -->
-
-  <footer class="px-5 pt-16 pb-4">
-    <div class="mx-auto max-w-[40rem]">
-      <div aria-hidden="true" class="h-[1px] bg-slate-700"></div>
-      <div class="flex items-center justify-between p-2">
-        <p class="text-sm text-slate-500">
-          <a
-            href="https://www.ansonh.com"
-            target="_blank"
-            rel="noreferrer"
-            class=" text-cyan-600 transition hover:text-cyan-500"
-          >
-            Anson Heung
-          </a>
-          © {new Date().getFullYear()}
-        </p>
-        <a
-          href="https://github.com/AnsonH/plinko-game"
-          target="_blank"
-          rel="noreferrer"
-          class="flex items-center gap-1 p-1 text-sm text-slate-500 transition hover:text-cyan-500"
-        >
-          <GitHubLogo class="size-4" weight="bold" />
-          <span>Source Code</span>
-        </a>
-      </div>
-    </div>
-  </footer>
 </div>
 
 <style lang="postcss">

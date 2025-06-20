@@ -14,21 +14,19 @@
   let lastRecords = $derived($prizeRecords.slice(-recordCount).toReversed());
 </script>
 
-<!-- Clamps in mobile:
-      - Width: From 1.5rem at 340px viewport width to 2rem at 620px viewport width
-      - Font size: From 8px at 340px viewport width to 10px at 620px viewport width
- -->
-<div
-  class="flex w-[clamp(1.5rem,0.893rem+2.857vw,2rem)] flex-col overflow-hidden rounded-xs text-[clamp(8px,5.568px+0.714vw,10px)] md:rounded-md lg:w-12 lg:text-sm"
-  style:aspect-ratio={`1 / ${recordCount}`}
->
-  {#each lastRecords as record}
+<!-- Display for single last win below the board -->
+<div class="flex flex-col items-center space-y-3 bg-gray-800 rounded-lg p-4 border border-gray-600">
+  {#if lastRecords.length > 0}
+    {@const record = lastRecords[0]}
+    <div class="text-lg text-white font-semibold">Last Prize Won:</div>
     <div
-      class="flex aspect-square items-center justify-center font-bold text-gray-950"
+      class="flex items-center justify-center px-6 py-3 rounded-lg font-bold text-gray-950 min-w-[150px] text-lg shadow-lg border-2 border-white"
       style:background-color={binColorsByColumnCount[$columnCount].background[record.binIndex]}
-      title={`Won: ${record.prize.name}`}
+      title={`Won: ${record.prize.name} from Bin ${record.binIndex + 1}`}
     >
-      {record.prize.name.slice(0, 2)}
+      {record.prize.name}
     </div>
-  {/each}
+  {:else}
+    <div class="text-lg text-gray-400 font-medium">No prizes won yet</div>
+  {/if}
 </div>
