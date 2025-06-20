@@ -1,19 +1,19 @@
 <script lang="ts">
-  import { binColorsByRowCount, binPayouts } from '$lib/constants/game';
-  import { plinkoEngine, riskLevel, rowCount, winRecords } from '$lib/stores/game';
+  import { binColorsByColumnCount } from '$lib/constants/game';
+  import { plinkoEngine, columnCount, prizeRecords, prizeBins } from '$lib/stores/game';
   import { isAnimationOn } from '$lib/stores/settings';
   import type { Action } from 'svelte/action';
 
   /**
-   * Bounce animations for each bin, which is played when a ball falls into the bin.
+   * Bounce animations for each bin, which is played when a token falls into the bin.
    */
   let binAnimations: Animation[] = $state([]);
 
   // NOTE: Not using $effect because it'll play animation if we toggle on animation in settings
-  winRecords.subscribe((value) => {
+  prizeRecords.subscribe((value) => {
     if (value.length) {
-      const lastWinBinIndex = value[value.length - 1].binIndex;
-      playAnimation(lastWinBinIndex);
+      const lastPrizeBinIndex = value[value.length - 1].binIndex;
+      playAnimation(lastPrizeBinIndex);
     }
   });
 
@@ -52,7 +52,7 @@
 <div class="flex h-[clamp(10px,0.352px+2.609vw,16px)] w-full justify-center lg:h-7">
   {#if $plinkoEngine}
     <div class="flex gap-[1%]" style:width={`${($plinkoEngine.binsWidthPercentage ?? 0) * 100}%`}>
-      {#each binPayouts[$rowCount][$riskLevel] as payout, binIndex}
+      {#each $prizeBins.slice(0, $columnCount) as prize, binIndex}
         <!-- Font-size clamping:
               - Mobile (< 1024px): From 6px at 370px viewport width to 8px at 600px viewport width
               - Desktop (>= 1024px): From 10px at 1024px viewport width to 12px at 1100px viewport width
@@ -60,10 +60,11 @@
         <div
           use:initAnimation
           class="flex min-w-0 flex-1 items-center justify-center rounded-xs text-[clamp(6px,2.784px+0.87vw,8px)] font-bold text-gray-950 shadow-[0_2px_var(--shadow-color)] lg:rounded-md lg:text-[clamp(10px,-16.944px+2.632vw,12px)] lg:shadow-[0_3px_var(--shadow-color)]"
-          style:background-color={binColorsByRowCount[$rowCount].background[binIndex]}
-          style:--shadow-color={binColorsByRowCount[$rowCount].shadow[binIndex]}
+          style:background-color={binColorsByColumnCount[$columnCount].background[binIndex]}
+          style:--shadow-color={binColorsByColumnCount[$columnCount].shadow[binIndex]}
+          title={prize.name}
         >
-          {payout}{payout < 100 ? '×' : ''}
+          {prize.name.length > 8 ? prize.name.slice(0, 8) + '...' : prize.name}
         </div>
       {/each}
     </div>

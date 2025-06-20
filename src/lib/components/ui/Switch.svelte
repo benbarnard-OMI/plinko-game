@@ -2,9 +2,11 @@
   import { Switch } from 'bits-ui';
   import { twMerge } from 'tailwind-merge';
 
-  type Props = Omit<Switch.Props, 'class'> & {
+  type Props = {
+    checked?: boolean;
     /** Additional classes to be applied to the root. */
     class?: string;
+    [key: string]: any;
   };
 
   let { checked = $bindable(undefined), class: className, ...props }: Props = $props();

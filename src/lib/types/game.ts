@@ -1,59 +1,68 @@
-import type { RowCount } from '$lib/constants/game';
-export type { RowCount } from '$lib/constants/game';
+/**
+ * Range of column counts the game supports for TV-style uniform boards.
+ */
+export const columnCountOptions = [7, 9, 11] as const;
 
-export enum BetMode {
-  MANUAL = 'MANUAL',
-  AUTO = 'AUTO',
+/**
+ * Number of columns for the uniform width board.
+ */
+export type ColumnCount = (typeof columnCountOptions)[number];
+
+/**
+ * Board layout style for different Plinko variants.
+ */
+export enum BoardStyle {
+  TV = 'TV', // Uniform width rectangular grid (TV show style)
 }
 
 /**
- * Game's risk level, which controls the volatility of payout.
+ * Configuration for a prize bin.
  */
-export enum RiskLevel {
-  LOW = 'LOW',
-  MEDIUM = 'MEDIUM',
-  HIGH = 'HIGH',
-}
-
-/**
- * A record of the bet amount associated to every existing ball in the game
- * that is still in motion.
- *
- * When a ball enters a bin, its record is removed.
- */
-export type BetAmountOfExistingBalls = {
-  [ballId: number]: number;
-};
-
-export type WinRecord = {
+export type PrizeBin = {
   /**
-   * UUID of the win record.
+   * Unique identifier for the prize.
    */
   id: string;
   /**
-   * How much the player has bet.
+   * Display name of the prize.
    */
-  betAmount: number;
+  name: string;
   /**
-   * Number of pin rows at the time of winning.
+   * Optional description of the prize.
    */
-  rowCount: RowCount;
+  description?: string;
   /**
-   * Zero-based index of which bin the ball fell into (leftmost bin is 0).
+   * Optional image URL for the prize.
+   */
+  imageUrl?: string;
+  /**
+   * Prize tier or category (e.g., 'small', 'medium', 'large', 'jackpot').
+   */
+  tier: string;
+};
+
+/**
+ * A record when a token lands in a prize bin.
+ */
+export type PrizeRecord = {
+  /**
+   * UUID of the prize record.
+   */
+  id: string;
+  /**
+   * Timestamp when the token landed.
+   */
+  timestamp: number;
+  /**
+   * Zero-based index of which bin the token fell into (leftmost bin is 0).
    */
   binIndex: number;
-  payout: {
-    /**
-     * Multiplier for the payout (e.g. `0.3`, `1.5`).
-     */
-    multiplier: number;
-    /**
-     * Actual payout amount.
-     */
-    value: number;
-  };
   /**
-   * Payout value minus the bet amount.
+   * The prize that was won.
    */
-  profit: number;
+  prize: PrizeBin;
+  /**
+   * Number of columns the board had when this was recorded.
+   */
+  columnCount: ColumnCount;
 };

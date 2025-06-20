@@ -1,9 +1,10 @@
-import type { RowCount } from '$lib/types';
+import type { ColumnCount } from '$lib/types';
 
 /**
  * Calculate the probabilities of a ball falling into each bin (from left to right).
  *
- * It follows a [binomial distribution](https://en.wikipedia.org/wiki/Binomial_distribution),
+ * For TV-style uniform boards, this is based on the number of rows and
+ * follows a [binomial distribution](https://en.wikipedia.org/wiki/Binomial_distribution),
  * where the probability of a ball falling into `k`th bin after `n` rows is:
  *
  * ```text
@@ -12,7 +13,7 @@ import type { RowCount } from '$lib/types';
  *
  * , where `C(n, k) = n! / (k! * (n - k)!)` and `p = 0.5`.
  */
-export function computeBinProbabilities(rowCount: RowCount): number[] {
+export function computeBinProbabilities(rowCount: number): number[] {
   const p = 0.5; // probability of success on a single trial
   const probabilities = [];
 

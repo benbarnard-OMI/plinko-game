@@ -24,7 +24,7 @@ describe('interpolateRgbColors', () => {
 
 describe('getBinColors', () => {
   it('returns the bin colors by row count', () => {
-    expect(getBinColors(8)).toEqual({
+    expect(getBinColors(9)).toEqual({
       background: [
         'rgb(255, 0, 63)',
         'rgb(255, 48, 47)',

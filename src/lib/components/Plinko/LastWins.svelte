@@ -1,17 +1,17 @@
 <script lang="ts">
-  import { binColorsByRowCount } from '$lib/constants/game';
-  import { winRecords } from '$lib/stores/game';
+  import { binColorsByColumnCount } from '$lib/constants/game';
+  import { prizeRecords, columnCount } from '$lib/stores/game';
 
   type Props = {
     /**
-     * Number of last wins to display.
+     * Number of last prize records to display.
      */
-    winCount?: number;
+    recordCount?: number;
   };
 
-  let { winCount = 4 }: Props = $props();
+  let { recordCount = 4 }: Props = $props();
 
-  let lastWins = $derived($winRecords.slice(-winCount).toReversed());
+  let lastRecords = $derived($prizeRecords.slice(-recordCount).toReversed());
 </script>
 
 <!-- Clamps in mobile:
@@ -20,14 +20,15 @@
  -->
 <div
   class="flex w-[clamp(1.5rem,0.893rem+2.857vw,2rem)] flex-col overflow-hidden rounded-xs text-[clamp(8px,5.568px+0.714vw,10px)] md:rounded-md lg:w-12 lg:text-sm"
-  style:aspect-ratio={`1 / ${winCount}`}
+  style:aspect-ratio={`1 / ${recordCount}`}
 >
-  {#each lastWins as { binIndex, rowCount, payout: { multiplier } }}
+  {#each lastRecords as record}
     <div
       class="flex aspect-square items-center justify-center font-bold text-gray-950"
-      style:background-color={binColorsByRowCount[rowCount].background[binIndex]}
+      style:background-color={binColorsByColumnCount[$columnCount].background[record.binIndex]}
+      title={`Won: ${record.prize.name}`}
     >
-      {multiplier}{multiplier < 100 ? '×' : ''}
+      {record.prize.name.slice(0, 2)}
     </div>
   {/each}
 </div>

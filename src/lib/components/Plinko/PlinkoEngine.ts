@@ -1,26 +1,25 @@
-import { binPayouts } from '$lib/constants/game';
+import { DEFAULT_PRIZE_BINS } from '$lib/constants/game';
 import {
-  rowCount,
-  winRecords,
-  riskLevel,
-  betAmount,
-  balance,
-  betAmountOfExistingBalls,
-  totalProfitHistory,
+  columnCount,
+  prizeRecords,
+  prizeBins,
 } from '$lib/stores/game';
-import type { RiskLevel, RowCount } from '$lib/types';
+import type { ColumnCount, PrizeBin, PrizeRecord } from '$lib/types';
 import { getRandomBetween } from '$lib/utils/numbers';
 import Matter, { type IBodyDefinition } from 'matter-js';
 import { get } from 'svelte/store';
 import { v4 as uuidv4 } from 'uuid';
 
-type BallFrictionsByRowCount = {
+type TokenFrictionsByColumnCount = {
   friction: NonNullable<IBodyDefinition['friction']>;
-  frictionAirByRowCount: Record<RowCount, NonNullable<IBodyDefinition['frictionAir']>>;
+  frictionAirByColumnCount: Record<ColumnCount, NonNullable<IBodyDefinition['frictionAir']>>;
 };
 
 /**
- * Engine for rendering the Plinko game using [matter-js](https://brm.io/matter-js/).
+ * Engine for rendering the TV-style Plinko game using [matter-js](https://brm.io/matter-js/).
+ * 
+ * Creates a uniform-width rectangular grid of pegs with equal-sized drop slots at the top
+ * and prize bins at the bottom, just like the classic TV show.
  *
  * The engine will read/write data to Svelte stores during game state changes.
  */
@@ -31,43 +30,34 @@ class PlinkoEngine {
   private canvas: HTMLCanvasElement;
 
   /**
-   * A cache value of the {@link betAmount} store for faster access.
+   * A cache value of the {@link columnCount} store for faster access.
    */
-  private betAmount: number;
-  /**
-   * A cache value of the {@link rowCount} store for faster access.
-   */
-  private rowCount: RowCount;
-  /**
-   * A cache value of the {@link riskLevel} store for faster access.
-   */
-  private riskLevel: RiskLevel;
+  private columnCount: ColumnCount;
 
   private engine: Matter.Engine;
   private render: Matter.Render;
   private runner: Matter.Runner;
 
   /**
-   * Every pin of the game.
+   * Every pin of the game in the rectangular grid.
    */
   private pins: Matter.Body[] = [];
   /**
-   * Walls are invisible, slanted "guard rails" at the left and right sides of the
-   * pin triangle. It prevents balls from falling outside the pin triangle and not
-   * hitting a bin.
+   * Walls are invisible barriers at the left and right sides of the
+   * game area to keep tokens within the play field.
    */
   private walls: Matter.Body[] = [];
   /**
    * "Sensor" is an invisible body at the bottom of the canvas. It detects whether
-   * a ball arrives at the bottom and enters a bin.
+   * a token arrives at the bottom and enters a prize bin.
    */
   private sensor: Matter.Body;
 
   /**
-   * The x-coordinates of every pin's center in the last row. Useful for calculating
-   * which bin a ball falls into.
+   * The x-coordinates of each prize bin boundary. Used for calculating
+   * which bin a token falls into.
    */
-  private pinsLastRowXCoords: number[] = [];
+  private binBoundaries: number[] = [];
 
   static WIDTH = 760;
   static HEIGHT = 570;
@@ -77,27 +67,18 @@ class PlinkoEngine {
   private static PADDING_BOTTOM = 28;
 
   private static PIN_CATEGORY = 0x0001;
-  private static BALL_CATEGORY = 0x0002;
+  private static TOKEN_CATEGORY = 0x0002;
 
   /**
-   * Friction parameters to be applied to the ball body.
-   *
-   * Higher friction leads to more concentrated distribution towards the center. These numbers
-   * are found by trial and error to make the actual weighted bin payout very close to the
-   * expected bin payout.
+   * Friction parameters to be applied to the token body.
+   * These values create realistic bouncing and movement.
    */
-  private static ballFrictions: BallFrictionsByRowCount = {
+  private static tokenFrictions: TokenFrictionsByColumnCount = {
     friction: 0.5,
-    frictionAirByRowCount: {
-      8: 0.0395,
-      9: 0.041,
-      10: 0.038,
-      11: 0.0355,
-      12: 0.0414,
-      13: 0.0437,
-      14: 0.0401,
-      15: 0.0418,
-      16: 0.0364,
+    frictionAirByColumnCount: {
+      7: 0.041,
+      9: 0.0395,
+      11: 0.038,
     },
   };
 
@@ -112,12 +93,8 @@ class PlinkoEngine {
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
 
-    this.betAmount = get(betAmount);
-    this.rowCount = get(rowCount);
-    this.riskLevel = get(riskLevel);
-    betAmount.subscribe((value) => (this.betAmount = value));
-    rowCount.subscribe((value) => this.updateRowCount(value));
-    riskLevel.subscribe((value) => (this.riskLevel = value));
+    this.columnCount = get(columnCount);
+    columnCount.subscribe((value) => this.updateColumnCount(value));
 
     this.engine = Matter.Engine.create({
       timing: {
@@ -136,7 +113,7 @@ class PlinkoEngine {
     });
     this.runner = Matter.Runner.create();
 
-    this.placePinsAndWalls();
+    this.createUniformBoard();
 
     this.sensor = Matter.Bodies.rectangle(
       this.canvas.width / 2,
@@ -155,9 +132,9 @@ class PlinkoEngine {
     Matter.Events.on(this.engine, 'collisionStart', ({ pairs }) => {
       pairs.forEach(({ bodyA, bodyB }) => {
         if (bodyA === this.sensor) {
-          this.handleBallEnterBin(bodyB);
+          this.handleTokenEnterBin(bodyB);
         } else if (bodyB === this.sensor) {
-          this.handleBallEnterBin(bodyA);
+          this.handleTokenEnterBin(bodyA);
         }
       });
     });
@@ -180,143 +157,155 @@ class PlinkoEngine {
   }
 
   /**
-   * Drops a new ball from the top with a random horizontal offset, and deducts the balance.
+   * Drops a new token from one of the top drop slots.
    */
-  dropBall() {
-    const ballOffsetRangeX = this.pinDistanceX * 0.8;
-    const ballRadius = this.pinRadius * 2;
-    const { friction, frictionAirByRowCount } = PlinkoEngine.ballFrictions;
+  dropToken() {
+    const slotWidth = this.gameWidth / this.columnCount;
+    const randomSlot = Math.floor(Math.random() * this.columnCount);
+    const dropX = PlinkoEngine.PADDING_X + slotWidth * randomSlot + slotWidth / 2;
+    const tokenRadius = this.pinRadius * 2;
+    const { friction, frictionAirByColumnCount } = PlinkoEngine.tokenFrictions;
 
-    const ball = Matter.Bodies.circle(
-      getRandomBetween(
-        this.canvas.width / 2 - ballOffsetRangeX,
-        this.canvas.width / 2 + ballOffsetRangeX,
-      ),
+    const token = Matter.Bodies.circle(
+      dropX + getRandomBetween(-slotWidth * 0.2, slotWidth * 0.2), // Small random offset within slot
       0,
-      ballRadius,
+      tokenRadius,
       {
         restitution: 0.8, // Bounciness
         friction,
-        frictionAir: frictionAirByRowCount[this.rowCount],
+        frictionAir: frictionAirByColumnCount[this.columnCount],
         collisionFilter: {
-          category: PlinkoEngine.BALL_CATEGORY,
-          mask: PlinkoEngine.PIN_CATEGORY, // Collide with pins only, but not other balls
+          category: PlinkoEngine.TOKEN_CATEGORY,
+          mask: PlinkoEngine.PIN_CATEGORY, // Collide with pins only, but not other tokens
         },
         render: {
           fillStyle: '#ff0000',
         },
       },
     );
-    Matter.Composite.add(this.engine.world, ball);
-
-    betAmountOfExistingBalls.update((value) => ({ ...value, [ball.id]: this.betAmount }));
-    balance.update((balance) => balance - this.betAmount);
+    Matter.Composite.add(this.engine.world, token);
   }
 
   /**
    * Total width of all bins as percentage of the canvas width.
    */
   get binsWidthPercentage(): number {
-    const lastPinX = this.pinsLastRowXCoords[this.pinsLastRowXCoords.length - 1];
-    return (lastPinX - this.pinsLastRowXCoords[0]) / PlinkoEngine.WIDTH;
+    return this.gameWidth / PlinkoEngine.WIDTH;
+  }
+
+  /**
+   * Gets the game area width (excluding padding).
+   */
+  private get gameWidth(): number {
+    return this.canvas.width - PlinkoEngine.PADDING_X * 2;
   }
 
   /**
    * Gets the horizontal distance between each pin's center point.
    */
   private get pinDistanceX(): number {
-    const lastRowPinCount = 3 + this.rowCount - 1;
-    return (this.canvas.width - PlinkoEngine.PADDING_X * 2) / (lastRowPinCount - 1);
+    return this.gameWidth / (this.columnCount - 1);
+  }
+
+  /**
+   * Gets the vertical distance between each pin row.
+   */
+  private get pinDistanceY(): number {
+    const gameHeight = this.canvas.height - PlinkoEngine.PADDING_TOP - PlinkoEngine.PADDING_BOTTOM;
+    const rowCount = 12; // Fixed number of rows for TV-style board
+    return gameHeight / (rowCount - 1);
   }
 
   private get pinRadius(): number {
-    return (24 - this.rowCount) / 2;
+    return Math.min(8, (24 - this.columnCount) / 2);
   }
 
   /**
-   * Refreshes the game with a new number of rows.
+   * Refreshes the game with a new number of columns.
    *
-   * Does nothing if the new row count equals the current count.
+   * Does nothing if the new column count equals the current count.
    */
-  private updateRowCount(rowCount: RowCount) {
-    if (rowCount === this.rowCount) {
+  private updateColumnCount(newColumnCount: ColumnCount) {
+    if (newColumnCount === this.columnCount) {
       return;
     }
 
-    this.removeAllBalls();
-
-    this.rowCount = rowCount;
-    this.placePinsAndWalls();
+    this.removeAllTokens();
+    this.columnCount = newColumnCount;
+    this.createUniformBoard();
   }
 
   /**
-   * Called when a ball hits the invisible sensor at the bottom.
+   * Called when a token hits the invisible sensor at the bottom.
    */
-  private handleBallEnterBin(ball: Matter.Body) {
-    const binIndex = this.pinsLastRowXCoords.findLastIndex((pinX) => pinX < ball.position.x);
-    if (binIndex !== -1 && binIndex < this.pinsLastRowXCoords.length - 1) {
-      const betAmount = get(betAmountOfExistingBalls)[ball.id] ?? 0;
-      const multiplier = binPayouts[this.rowCount][this.riskLevel][binIndex];
-      const payoutValue = betAmount * multiplier;
-      const profit = payoutValue - betAmount;
+  private handleTokenEnterBin(token: Matter.Body) {
+    const tokenX = token.position.x;
+    const binIndex = this.calculateBinIndex(tokenX);
+    
+    if (binIndex >= 0 && binIndex < this.columnCount) {
+      const currentPrizeBins = get(prizeBins);
+      const prize = currentPrizeBins[binIndex] || { id: 'unknown', name: 'Unknown Prize', tier: 'small' };
+      
+      const record: PrizeRecord = {
+        id: uuidv4(),
+        binIndex,
+        prize,
+        timestamp: Date.now(),
+        columnCount: this.columnCount,
+      };
 
-      winRecords.update((records) => [
-        ...records,
-        {
-          id: uuidv4(),
-          betAmount,
-          rowCount: this.rowCount,
-          binIndex,
-          payout: {
-            multiplier,
-            value: payoutValue,
-          },
-          profit,
-        },
-      ]);
-      totalProfitHistory.update((history) => {
-        const lastTotalProfit = history.slice(-1)[0];
-        return [...history, lastTotalProfit + profit];
-      });
-      balance.update((balance) => balance + payoutValue);
+      prizeRecords.update((records) => [...records, record]);
     }
 
-    Matter.Composite.remove(this.engine.world, ball);
-    betAmountOfExistingBalls.update((value) => {
-      const newValue = { ...value };
-      delete newValue[ball.id];
-      return newValue;
-    });
+    Matter.Composite.remove(this.engine.world, token);
   }
 
   /**
-   * Renders the pins and walls. Previous ones are removed before rendering new ones.
+   * Calculate which bin a token fell into based on its x-position.
    */
-  private placePinsAndWalls() {
-    const { PADDING_X, PADDING_TOP, PADDING_BOTTOM, PIN_CATEGORY, BALL_CATEGORY } = PlinkoEngine;
+  private calculateBinIndex(x: number): number {
+    const relativeX = x - PlinkoEngine.PADDING_X;
+    const binWidth = this.gameWidth / this.columnCount;
+    const binIndex = Math.floor(relativeX / binWidth);
+    return Math.max(0, Math.min(this.columnCount - 1, binIndex));
+  }
 
+  /**
+   * Creates a uniform rectangular grid of pins (TV show style).
+   * Previous pins and walls are removed before creating new ones.
+   */
+  private createUniformBoard() {
+    const { PADDING_X, PADDING_TOP, PADDING_BOTTOM, PIN_CATEGORY, TOKEN_CATEGORY } = PlinkoEngine;
+
+    // Remove existing pins and walls
     if (this.pins.length > 0) {
       Matter.Composite.remove(this.engine.world, this.pins);
       this.pins = [];
-    }
-    if (this.pinsLastRowXCoords.length > 0) {
-      this.pinsLastRowXCoords = [];
     }
     if (this.walls.length > 0) {
       Matter.Composite.remove(this.engine.world, this.walls);
       this.walls = [];
     }
 
-    for (let row = 0; row < this.rowCount; ++row) {
-      const rowY =
-        PADDING_TOP +
-        ((this.canvas.height - PADDING_TOP - PADDING_BOTTOM) / (this.rowCount - 1)) * row;
+    const rowCount = 12; // Fixed number of rows for TV-style board
+    const pinDistanceX = this.pinDistanceX;
+    const pinDistanceY = this.pinDistanceY;
 
-      /** Horizontal distance between canvas left/right boundary and first/last pin of the row. */
-      const rowPaddingX = PADDING_X + ((this.rowCount - 1 - row) * this.pinDistanceX) / 2;
-
-      for (let col = 0; col < 3 + row; ++col) {
-        const colX = rowPaddingX + ((this.canvas.width - rowPaddingX * 2) / (3 + row - 1)) * col;
+    // Create uniform rectangular grid of pins
+    for (let row = 0; row < rowCount; row++) {
+      const rowY = PADDING_TOP + pinDistanceY * row;
+      
+      // Offset every other row to create the pin pattern
+      const xOffset = (row % 2) * (pinDistanceX / 2);
+      
+      for (let col = 0; col < this.columnCount; col++) {
+        const colX = PADDING_X + pinDistanceX * col + xOffset;
+        
+        // Skip pins that would be outside the game area
+        if (colX < PADDING_X || colX > this.canvas.width - PADDING_X) {
+          continue;
+        }
+        
         const pin = Matter.Bodies.circle(colX, rowY, this.pinRadius, {
           isStatic: true,
           render: {
@@ -324,59 +313,60 @@ class PlinkoEngine {
           },
           collisionFilter: {
             category: PIN_CATEGORY,
-            mask: BALL_CATEGORY, // Collide with balls
+            mask: TOKEN_CATEGORY, // Collide with tokens
           },
         });
         this.pins.push(pin);
-
-        if (row === this.rowCount - 1) {
-          this.pinsLastRowXCoords.push(colX);
-        }
       }
     }
     Matter.Composite.add(this.engine.world, this.pins);
 
-    const firstPinX = this.pins[0].position.x;
-    const leftWallAngle = Math.atan2(
-      firstPinX - this.pinsLastRowXCoords[0],
-      this.canvas.height - PADDING_TOP - PADDING_BOTTOM,
-    );
-    const leftWallX =
-      firstPinX - (firstPinX - this.pinsLastRowXCoords[0]) / 2 - this.pinDistanceX * 0.25;
-
+    // Create side walls
     const leftWall = Matter.Bodies.rectangle(
-      leftWallX,
+      PADDING_X / 2,
       this.canvas.height / 2,
       10,
       this.canvas.height,
       {
         isStatic: true,
-        angle: leftWallAngle,
         render: { visible: false },
       },
     );
     const rightWall = Matter.Bodies.rectangle(
-      this.canvas.width - leftWallX,
+      this.canvas.width - PADDING_X / 2,
       this.canvas.height / 2,
       10,
       this.canvas.height,
       {
         isStatic: true,
-        angle: -leftWallAngle,
         render: { visible: false },
       },
     );
     this.walls.push(leftWall, rightWall);
     Matter.Composite.add(this.engine.world, this.walls);
+
+    // Update bin boundaries for prize calculation
+    this.updateBinBoundaries();
   }
 
-  private removeAllBalls() {
+  /**
+   * Update bin boundaries for calculating which bin a token lands in.
+   */
+  private updateBinBoundaries() {
+    this.binBoundaries = [];
+    const binWidth = this.gameWidth / this.columnCount;
+    
+    for (let i = 0; i <= this.columnCount; i++) {
+      this.binBoundaries.push(PlinkoEngine.PADDING_X + binWidth * i);
+    }
+  }
+
+  private removeAllTokens() {
     Matter.Composite.allBodies(this.engine.world).forEach((body) => {
-      if (body.collisionFilter.category === PlinkoEngine.BALL_CATEGORY) {
+      if (body.collisionFilter.category === PlinkoEngine.TOKEN_CATEGORY) {
         Matter.Composite.remove(this.engine.world, body);
       }
     });
-    betAmountOfExistingBalls.set({});
   }
 }
 

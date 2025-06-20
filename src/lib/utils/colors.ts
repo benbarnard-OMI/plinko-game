@@ -1,4 +1,4 @@
-import type { RowCount } from '$lib/types';
+import type { ColumnCount } from '$lib/types';
 
 type RgbColor = { r: number; g: number; b: number };
 
@@ -19,11 +19,12 @@ export function interpolateRgbColors(from: RgbColor, to: RgbColor, length: numbe
 }
 
 /**
- * Gets the background and shadow colors of each bin given the row count.
+ * Gets the background and shadow colors of each bin given the column count.
+ * For TV-style uniform boards, the number of bins equals the number of columns.
  */
-export function getBinColors(rowCount: RowCount) {
+export function getBinColors(columnCount: ColumnCount) {
   {
-    const binCount = rowCount + 1;
+    const binCount = columnCount;
     const isBinsEven = binCount % 2 === 0;
     const redToYellowLength = Math.ceil(binCount / 2);
 

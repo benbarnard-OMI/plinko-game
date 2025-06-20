@@ -1,3 +1,5 @@
+<!-- Balance component not needed for prize game -->
+<!-- 
 <script lang="ts">
   import { balance } from '$lib/stores/game';
   import { flyAndScale } from '$lib/utils/transitions';
@@ -55,3 +57,4 @@
     </Popover.Content>
   </Popover.Root>
 </div>
+-->
