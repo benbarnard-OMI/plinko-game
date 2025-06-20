@@ -157,11 +157,15 @@ class PlinkoEngine {
 
   /**
    * Drops a new token from one of the top drop slots.
+   * @param slotIndex Optional index of the slot to drop the token from. If not provided, a random slot is used.
    */
-  dropToken() {
+  dropToken(slotIndex?: number) {
     const slotWidth = this.gameWidth / this.columnCount;
-    const randomSlot = Math.floor(Math.random() * this.columnCount);
-    const dropX = PlinkoEngine.PADDING_X + slotWidth * randomSlot + slotWidth / 2;
+    const chosenSlot =
+      typeof slotIndex === 'number' && slotIndex >= 0 && slotIndex < this.columnCount
+        ? slotIndex
+        : Math.floor(Math.random() * this.columnCount);
+    const dropX = PlinkoEngine.PADDING_X + slotWidth * chosenSlot + slotWidth / 2;
     const tokenRadius = this.pinRadius * 2;
     const { friction, frictionAirByColumnCount } = PlinkoEngine.tokenFrictions;
 

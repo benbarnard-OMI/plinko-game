@@ -12,9 +12,15 @@
 
   let isDropTokenDisabled = $derived($plinkoEngine === null);
 
+  // New: Track selected drop slot
+  let selectedSlot: number = 0;
+
+  // Fix: Use $derived for maxSlot in runes mode
+  let maxSlot = $derived($columnCount);
+
   function handleDropToken() {
     if ($plinkoEngine && !isDropTokenDisabled) {
-      $plinkoEngine.dropToken();
+      $plinkoEngine.dropToken(selectedSlot);
     }
   }
 </script>
@@ -51,6 +57,20 @@
     >
       {#each columnCountOptions as option}
         <option value={option}>{option} Columns</option>
+      {/each}
+    </select>
+  </div>
+
+  <!-- New: Drop Slot Selection -->
+  <div class="space-y-2">
+    <label for="slot-select" class="text-sm font-medium text-gray-300">Drop Slot</label>
+    <select
+      id="slot-select"
+      bind:value={selectedSlot}
+      class="w-full rounded bg-gray-700 px-3 py-2 text-white"
+    >
+      {#each Array(maxSlot).fill(0).map((_, i) => i) as slot}
+        <option value={slot}>Slot {slot + 1}</option>
       {/each}
     </select>
   </div>
