@@ -3,6 +3,9 @@
   import { plinkoEngine, columnCount, prizeRecords, prizeBins } from '$lib/stores/game';
   import { isAnimationOn } from '$lib/stores/settings';
   import type { Action } from 'svelte/action';
+  import { fireworkSmall, fireworkJackpot } from '$lib/utils/fireworks';
+  import { onMount } from 'svelte';
+  import { writable } from 'svelte/store';
 
   /**
    * Bounce animations for each bin, which is played when a token falls into the bin.
@@ -46,10 +49,52 @@
 
     animation.play();
   }
+
+  // Allow clicking a bin to drop a token in that slot
+  function handleBinClick(binIndex: number) {
+    console.log('Clicked bin', binIndex, 'plinkoEngine:', $plinkoEngine);
+    if ($plinkoEngine) {
+      $plinkoEngine.dropToken(binIndex);
+    }
+  }
+
+  // Store for showing jackpot overlay
+  let showJackpot = $state(false);
+  let jackpotTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  // Listen for new prize records and trigger effects
+  prizeRecords.subscribe((value) => {
+    if (value.length) {
+      const lastPrize = value[value.length - 1];
+      if (lastPrize.prize.tier === 'jackpot') {
+        fireworkJackpot(document.body);
+        showJackpot = true;
+        if (jackpotTimeout) clearTimeout(jackpotTimeout);
+        jackpotTimeout = setTimeout(() => (showJackpot = false), 3500);
+      } else {
+        fireworkSmall(document.body);
+      }
+    }
+  });
 </script>
 
+<!-- Remove Pepe Sad GIF background from bins row area -->
+
 <!-- Height clamping in mobile: From 10px at 370px viewport width to 16px at 600px viewport width -->
-<div class="flex h-[clamp(10px,0.352px+2.609vw,16px)] w-full justify-center lg:h-7">
+<div class="flex h-[clamp(10px,0.352px+2.609vw,16px)] w-full justify-center lg:h-7 relative z-10">
+  {#if showJackpot}
+    <div class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/60">
+      <div class="relative z-10 flex flex-col items-center justify-center">
+        <div class="text-6xl font-extrabold text-yellow-400 drop-shadow-lg animate-bounce mb-8">JACKPOT!</div>
+        <div class="flex gap-4">
+          <span class="text-5xl">🎈</span>
+          <span class="text-5xl">🎈</span>
+          <span class="text-5xl">🎈</span>
+          <span class="text-5xl">🎈</span>
+        </div>
+      </div>
+    </div>
+  {/if}
   {#if $plinkoEngine}
     <div class="flex gap-[1%]" style:width={`${($plinkoEngine.binsWidthPercentage ?? 0) * 100}%`}>
       {#each $prizeBins.slice(0, $columnCount) as prize, binIndex}
@@ -63,6 +108,8 @@
           style:background-color={binColorsByColumnCount[$columnCount].background[binIndex]}
           style:--shadow-color={binColorsByColumnCount[$columnCount].shadow[binIndex]}
           title={prize.name}
+          on:click={() => handleBinClick(binIndex)}
+          style="cursor: pointer;"
         >
           {prize.name.length > 8 ? prize.name.slice(0, 8) + '...' : prize.name}
         </div>

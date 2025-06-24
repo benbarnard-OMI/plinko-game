@@ -31,13 +31,19 @@
       <div class="flex items-stretch justify-center min-h-[600px] gap-6">
         
         <!-- Left Branding Rectangle -->
-        <div class="hidden lg:block w-80 bg-gray-700 rounded-lg border-2 border-gray-600">
+        <div class="hidden lg:block w-80 bg-gray-700 rounded-lg border-2 border-gray-600 mr-6 flex-shrink-0">
           <div class="h-full flex items-center justify-center">
-            <div class="text-center text-gray-400">
-              <div class="text-xl font-bold mb-2">BRANDING</div>
-              <div class="text-sm">Left Content Area</div>
-              <div class="text-xs mt-2 opacity-60">Future sponsor content</div>
-            </div>
+            <!-- Branding/Left Content Area for sponsors/Peepo Sad GIF -->
+            <iframe
+              src="https://tenor.com/embed/17156460915069022561"
+              allowtransparency="true"
+              frameborder="0"
+              scrolling="no"
+              width="120"
+              height="120"
+              style="background: none; border: none;"
+              title="Peepo Sad Sticker GIF"
+            ></iframe>
           </div>
         </div>
 

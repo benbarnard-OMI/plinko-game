@@ -1,6 +1,8 @@
 <script lang="ts">
   import { binColorsByColumnCount } from '$lib/constants/game';
   import { prizeRecords, columnCount } from '$lib/stores/game';
+  import { fireworkSmall, fireworkJackpot } from '$lib/utils/fireworks';
+  import { onMount } from 'svelte';
 
   type Props = {
     /**
@@ -12,10 +14,27 @@
   let { recordCount = 4 }: Props = $props();
 
   let lastRecords = $derived($prizeRecords.slice(-recordCount).toReversed());
+
+  let container: HTMLDivElement;
+  let lastPrizeId: string | null = null;
+
+  $effect(() => {
+    if (lastRecords.length > 0) {
+      const record = lastRecords[0];
+      if (record && record.id !== lastPrizeId) {
+        lastPrizeId = record.id;
+        if (record.prize.tier === 'jackpot') {
+          fireworkJackpot(document.body);
+        } else {
+          fireworkSmall(document.body);
+        }
+      }
+    }
+  });
 </script>
 
 <!-- Display for single last win below the board -->
-<div class="flex flex-col items-center space-y-3 bg-gray-800 rounded-lg p-4 border border-gray-600">
+<div bind:this={container} class="flex flex-col items-center space-y-3 bg-gray-800 rounded-lg p-4 border border-gray-600">
   {#if lastRecords.length > 0}
     {@const record = lastRecords[0]}
     <div class="text-lg text-white font-semibold">Last Prize Won:</div>
