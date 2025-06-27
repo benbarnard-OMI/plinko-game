@@ -10,6 +10,8 @@ import Matter, { type IBodyDefinition } from 'matter-js';
 import { get } from 'svelte/store';
 import { v4 as uuidv4 } from 'uuid';
 
+const coinDropAudio = typeof window !== 'undefined' ? new Audio('/src/lib/assets/coindrop1-92749.mp3') : null;
+
 type TokenFrictionsByColumnCount = {
   friction: NonNullable<IBodyDefinition['friction']>;
   frictionAirByColumnCount: Record<ColumnCount, NonNullable<IBodyDefinition['frictionAir']>>;
@@ -187,11 +189,15 @@ class PlinkoEngine {
     Matter.Runner.stop(this.runner);
   }
 
+  private isTokenActive = false;
+
   /**
    * Drops a new token from one of the top drop slots.
    * @param slotIndex Optional index of the slot to drop the token from. If not provided, a random slot is used.
    */
   dropToken(slotIndex?: number) {
+    if (this.isTokenActive) return;
+    this.isTokenActive = true;
     const slotWidth = this.gameWidth / this.columnCount;
     const chosenSlot =
       typeof slotIndex === 'number' && slotIndex >= 0 && slotIndex < this.columnCount
@@ -202,16 +208,16 @@ class PlinkoEngine {
     const { friction, frictionAirByColumnCount } = PlinkoEngine.tokenFrictions;
 
     const token = Matter.Bodies.circle(
-      dropX + getRandomBetween(-slotWidth * 0.2, slotWidth * 0.2), // Small random offset within slot
+      dropX + getRandomBetween(-slotWidth * 0.2, slotWidth * 0.2),
       0,
       tokenRadius,
       {
-        restitution: 0.8, // Bounciness
+        restitution: 0.8,
         friction,
         frictionAir: frictionAirByColumnCount[this.columnCount],
         collisionFilter: {
           category: PlinkoEngine.TOKEN_CATEGORY,
-          mask: PlinkoEngine.PIN_CATEGORY | 0x0001, // Collide with pins and default objects
+          mask: PlinkoEngine.PIN_CATEGORY | 0x0001,
         },
         render: {
           fillStyle: '#ff0000',
@@ -219,6 +225,11 @@ class PlinkoEngine {
       },
     );
     Matter.Composite.add(this.engine.world, token);
+
+    if (coinDropAudio) {
+      coinDropAudio.currentTime = 0;
+      coinDropAudio.play();
+    }
   }
 
   /**
@@ -297,6 +308,7 @@ class PlinkoEngine {
     }
 
     Matter.Composite.remove(this.engine.world, token);
+    this.isTokenActive = false;
   }
 
   /**

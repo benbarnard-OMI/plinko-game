@@ -52,9 +52,13 @@
 
   // Allow clicking a bin to drop a token in that slot
   function handleBinClick(binIndex: number) {
-    console.log('Clicked bin', binIndex, 'plinkoEngine:', $plinkoEngine);
+    // Always try to drop a token, even if controls are hidden
     if ($plinkoEngine) {
       $plinkoEngine.dropToken(binIndex);
+    } else {
+      // Try to force PlinkoEngine initialization if not ready
+      // (This should not happen in normal use, but for robustness)
+      window.location.reload();
     }
   }
 
@@ -109,7 +113,11 @@
           style:--shadow-color={binColorsByColumnCount[$columnCount].shadow[binIndex]}
           title={prize.name}
           on:click={() => handleBinClick(binIndex)}
-          style="cursor: pointer;"
+          tabindex="0"
+          role="button"
+          aria-label={`Drop token in bin ${binIndex + 1}`}
+          style="cursor: pointer; user-select: none; pointer-events: auto;"
+          on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleBinClick(binIndex); }}
         >
           {prize.name.length > 8 ? prize.name.slice(0, 8) + '...' : prize.name}
         </div>

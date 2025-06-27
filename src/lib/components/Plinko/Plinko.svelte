@@ -5,6 +5,7 @@
   import BinsRow from './BinsRow.svelte';
   import LastWins from './LastWins.svelte';
   import PlinkoEngine from './PlinkoEngine';
+  import PrizeSidebar from '../Sidebar/PrizeSidebar.svelte';
 
   const { WIDTH, HEIGHT } = PlinkoEngine;
 
@@ -18,20 +19,26 @@
       },
     };
   };
+
+  function handleCanvasClick(event: MouseEvent) {
+    if (!$plinkoEngine) return;
+    const rect = (event.target as HTMLCanvasElement).getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    // Map x to slot index
+    const slotWidth = WIDTH / $plinkoEngine.columnCount;
+    const slotIndex = Math.floor(x / slotWidth);
+    $plinkoEngine.dropToken(slotIndex);
+  }
 </script>
 
-<div class="relative bg-gray-900">
-  <div class="mx-auto flex h-full flex-col px-4 pb-4" style:max-width={`${WIDTH}px`}>
-    <div class="relative w-full" style:aspect-ratio={`${WIDTH} / ${HEIGHT}`}>
-      {#if $plinkoEngine === null}
-        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-          <CircleNotch class="size-20 animate-spin text-slate-600" weight="bold" />
-        </div>
-      {/if}
-
-      <canvas use:initPlinko width={WIDTH} height={HEIGHT} class="absolute inset-0 h-full w-full">
-      </canvas>
-    </div>
-    <BinsRow />
+<div class="bg-gray-900 flex flex-col items-center justify-center">
+  <div class="relative w-full h-full">
+    {#if $plinkoEngine === null}
+      <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+        <CircleNotch class="size-20 animate-spin text-slate-600" weight="bold" />
+      </div>
+    {/if}
+    <canvas use:initPlinko width={WIDTH} height={HEIGHT} class="block mx-auto" on:click={handleCanvasClick}></canvas>
   </div>
+  <BinsRow />
 </div>
