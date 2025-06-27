@@ -32,7 +32,7 @@
 </script>
 
 <div class="bg-gray-900 flex flex-col items-center justify-center">
-  <div class="relative w-full h-full">
+  <div class="relative w-full h-full" style="background: #bfa77a;">
     {#if $plinkoEngine === null}
       <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
         <CircleNotch class="size-20 animate-spin text-slate-600" weight="bold" />
@@ -42,3 +42,14 @@
   </div>
   <BinsRow />
 </div>
+
+<style>
+.plinko-wood-bg {
+  background-image: url('/src/lib/assets/wood-bg.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  /* fallback color if image fails */
+  background-color: #bfa77a;
+}
+</style>

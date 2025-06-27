@@ -112,10 +112,17 @@ class PlinkoEngine {
       options: {
         width: PlinkoEngine.WIDTH,
         height: PlinkoEngine.HEIGHT,
-        background: '#0f1728',
+        background: '#0f1728', // Restore original grey color
         wireframes: false,
       },
     });
+    // Remove any background image styling
+    if (this.canvas) {
+      this.canvas.style.backgroundImage = '';
+      this.canvas.style.backgroundSize = '';
+      this.canvas.style.backgroundPosition = '';
+      this.canvas.style.backgroundRepeat = '';
+    }
     this.runner = Matter.Runner.create();
 
     this.createUniformBoard();
@@ -205,16 +212,18 @@ class PlinkoEngine {
         : Math.floor(Math.random() * this.columnCount);
     const dropX = PlinkoEngine.PADDING_X + slotWidth * chosenSlot + slotWidth / 2;
     const tokenRadius = this.pinRadius * 2;
-    const { friction, frictionAirByColumnCount } = PlinkoEngine.tokenFrictions;
+    const restitution = getRandomBetween(0.4, 1.25);
+    const friction = getRandomBetween(0.1, 0.85);
+    const frictionAir = getRandomBetween(0.01, 0.09);
 
     const token = Matter.Bodies.circle(
-      dropX + getRandomBetween(-slotWidth * 0.2, slotWidth * 0.2),
+      dropX + getRandomBetween(-slotWidth * 0.45, slotWidth * 0.45),
       0,
       tokenRadius,
       {
-        restitution: 0.8,
+        restitution,
         friction,
-        frictionAir: frictionAirByColumnCount[this.columnCount],
+        frictionAir,
         collisionFilter: {
           category: PlinkoEngine.TOKEN_CATEGORY,
           mask: PlinkoEngine.PIN_CATEGORY | 0x0001,
@@ -225,6 +234,69 @@ class PlinkoEngine {
       },
     );
     Matter.Composite.add(this.engine.world, token);
+
+    // --- Bias away from bin 5 at drop ---
+    // Only if there are at least 6 bins (index 5 exists)
+    if (this.columnCount > 5) {
+      const bin5Center = PlinkoEngine.PADDING_X + slotWidth * 5 + slotWidth / 2;
+      const distFromBin5 = token.position.x - bin5Center;
+      // If close to bin 5, nudge left or right, but only 1/100 times
+      if (Math.abs(distFromBin5) < slotWidth * 1.2 && Math.random() < 0.01) {
+        const nudge = distFromBin5 > 0 ? getRandomBetween(0.04, 0.12) : getRandomBetween(-0.12, -0.04);
+        Matter.Body.applyForce(token, token.position, { x: nudge, y: 0 });
+      }
+    }
+    // Add a much larger random force at drop
+    Matter.Body.applyForce(token, token.position, {
+      x: getRandomBetween(-0.09, 0.09),
+      y: getRandomBetween(0, 0.06),
+    });
+    Matter.Body.setAngularVelocity(token, getRandomBetween(-0.7, 0.7));
+
+    // Listen for pin collisions to add more chaos and bias away from bin 5
+    const pinCollisionHandler = (event: Matter.IEventCollision<Matter.Engine>) => {
+      for (const pair of event.pairs) {
+        const { bodyA, bodyB } = pair;
+        if ((bodyA === token && this.pins.includes(bodyB)) || (bodyB === token && this.pins.includes(bodyA))) {
+          // --- Bias away from bin 5 during descent ---
+          if (this.columnCount > 5) {
+            const bin5Center = PlinkoEngine.PADDING_X + slotWidth * 5 + slotWidth / 2;
+            const distFromBin5 = token.position.x - bin5Center;
+            // Only 1/100 times
+            if (Math.abs(distFromBin5) < slotWidth * 1.2 && Math.random() < 0.01) {
+              const nudge = distFromBin5 > 0 ? getRandomBetween(0.04, 0.12) : getRandomBetween(-0.12, -0.04);
+              Matter.Body.applyForce(token, token.position, { x: nudge, y: 0 });
+            }
+          }
+          // Apply a much larger and more random force on every pin collision
+          Matter.Body.applyForce(token, token.position, {
+            x: getRandomBetween(-0.18, 0.18),
+            y: getRandomBetween(-0.04, 0.09),
+          });
+          Matter.Body.setAngularVelocity(token, token.angularVelocity + getRandomBetween(-0.7, 0.7));
+          // Occasionally (10% chance), apply a very strong force or spin for extra chaos
+          if (Math.random() < 0.1) {
+            Matter.Body.applyForce(token, token.position, {
+              x: getRandomBetween(-0.35, 0.35),
+              y: getRandomBetween(-0.12, 0.18),
+            });
+            Matter.Body.setAngularVelocity(token, token.angularVelocity + getRandomBetween(-1.5, 1.5));
+          }
+        }
+      }
+    };
+    Matter.Events.on(this.engine, 'collisionStart', pinCollisionHandler);
+
+    // Remove the event listener when the token is removed (to avoid memory leaks)
+    const cleanup = () => {
+      Matter.Events.off(this.engine, 'collisionStart', pinCollisionHandler);
+    };
+    // Patch handleTokenEnterBin to call cleanup if this token is removed
+    const origHandleTokenEnterBin = this.handleTokenEnterBin.bind(this);
+    this.handleTokenEnterBin = (body: Matter.Body) => {
+      if (body === token) cleanup();
+      origHandleTokenEnterBin(body);
+    };
 
     if (coinDropAudio) {
       coinDropAudio.currentTime = 0;
@@ -354,10 +426,15 @@ class PlinkoEngine {
         {
           isStatic: true,
           isSensor: true, // Don't collide with anything
+          label: `drop-slot-${slot}`,
           render: {
             fillStyle: '#00ff00', // Bright green for visibility
             strokeStyle: '#ffffff',
             lineWidth: 2,
+          },
+          plugin: {
+            clickable: true, // Custom property for UI mapping
+            slotIndex: slot,
           },
         }
       );

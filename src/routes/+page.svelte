@@ -62,7 +62,7 @@
 
         <!-- Main Game Presentation Area (4:3 aspect ratio) -->
         <div class="flex-shrink-0">
-          <div class="bg-gray-800 rounded-lg border-2 border-gray-600 overflow-hidden" style="aspect-ratio: 4/3; width: 800px;">
+          <div class="bg-[url('/src/lib/assets/wood-bg.jpg')] bg-cover bg-center flex flex-col items-center justify-center rounded-lg border-2 border-gray-600 overflow-hidden" style="aspect-ratio: 4/3; width: 800px;">
             <div class="h-full w-full">
               <Plinko />
             </div>
@@ -113,20 +113,4 @@
     /* @apply bg-gray-800; */
     background: none !important;
   }
-  
-  :global(.rainbow-bg) {
-    position: fixed;
-    z-index: -1;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    pointer-events: none;
-    overflow: hidden;
-  }
 </style>
-
-<!-- Pride Rainbow GIF background -->
-<div class="rainbow-bg">
-  <div class="tenor-gif-embed" data-postid="26074068" data-share-method="host" data-aspect-ratio="1.34454" data-width="100%"><a href="https://tenor.com/view/pride-rainbow-gif-26074068">Pride Rainbow GIF</a>from <a href="https://tenor.com/search/pride-gifs">Pride GIFs</a></div>
-</div>

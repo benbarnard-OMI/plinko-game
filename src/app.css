@@ -12,3 +12,7 @@
     cursor: pointer;
   }
 }
+
+body, html {
+  background: #0f1728 !important;
+}
