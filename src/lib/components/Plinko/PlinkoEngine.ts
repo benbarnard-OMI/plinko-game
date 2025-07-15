@@ -370,7 +370,6 @@ class PlinkoEngine {
     if (binIndex >= 0 && binIndex < this.columnCount) {
       const currentPrizeBins = get(prizeBins);
       const prize = currentPrizeBins[binIndex] || { id: 'unknown', name: 'Unknown Prize', tier: 'small' };
-      
       const record: PrizeRecord = {
         id: uuidv4(),
         binIndex,
@@ -378,11 +377,13 @@ class PlinkoEngine {
         timestamp: Date.now(),
         columnCount: this.columnCount,
       };
-
       console.log('Adding prize record:', record);
       prizeRecords.update((records) => [...records, record]);
+      // Notify serial bridge (Node.js) to activate Pico hardware
+      fetch('http://localhost:3001/activate', { method: 'POST' }).catch((err) => {
+        console.warn('Could not notify Pico serial bridge:', err);
+      });
     }
-
     Matter.Composite.remove(this.engine.world, token);
     this.isTokenActive = false;
   }
