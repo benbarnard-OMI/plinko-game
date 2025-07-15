@@ -299,8 +299,12 @@ class PlinkoEngine {
     };
 
     if (coinDropAudio) {
-      coinDropAudio.currentTime = 0;
-      coinDropAudio.play();
+      // Only play if not already playing
+      if (coinDropAudio.paused) {
+        coinDropAudio.currentTime = 0;
+        coinDropAudio.play();
+      }
+      // If already playing, do not restart; let it finish
     }
   }
 

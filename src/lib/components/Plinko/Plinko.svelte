@@ -10,12 +10,14 @@
   const { WIDTH, HEIGHT } = PlinkoEngine;
 
   const initPlinko: Action<HTMLCanvasElement> = (node) => {
-    $plinkoEngine = new PlinkoEngine(node);
-    $plinkoEngine.start();
+    const engine = new PlinkoEngine(node);
+    engine.start();
+    plinkoEngine.set(engine);
 
     return {
       destroy: () => {
-        $plinkoEngine?.stop();
+        engine.stop();
+        plinkoEngine.set(null);
       },
     };
   };
